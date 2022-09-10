@@ -243,7 +243,7 @@ class BenchmarkModule(pl.LightningModule):
 			for (num, top1, top1_ncc) in outputs:
 				total_num += num[0]
 				total_top1 += top1
-				total_top1_ncc += top1
+				total_top1_ncc += top1_ncc
 
 			if dist.is_initialized() and dist.get_world_size() > 1:
 				dist.all_reduce(total_num)
@@ -255,6 +255,7 @@ class BenchmarkModule(pl.LightningModule):
 			if acc > self.max_knn_accuracy:
 				self.max_knn_accuracy = acc
 			self.log('kNN_accuracy', acc, prog_bar=True)
+			self.log('ncc_accuracy', ncc_acc, prog_bar=True)
 
 			wandb.log({'epoch': self.current_epoch, 'kNN_accuracy': acc,
 					"max_knn_accuracy": self.max_knn_accuracy, 'ncc_acc':ncc_acc})

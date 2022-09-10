@@ -23,7 +23,7 @@ from models.ConvArch import ConvArch
 logs_root_dir = os.path.join(os.getcwd(), 'benchmark_logs')
 
 # set max_epochs to 800 for long run (takes around 10h on a single V100)
-max_epochs = 100
+max_epochs = 200
 num_workers = 0
 knn_k = 200
 knn_t = 0.1
@@ -45,7 +45,7 @@ gather_distributed = False
 
 # benchmark
 n_runs = 1 # optional, increase to create multiple runs and report mean + std
-batch_size = 128
+batch_size = 512
 lr_factor = batch_size / 128 # scales the learning rate linearly with batch size
 
 # use a GPU if available
@@ -342,7 +342,6 @@ class BarlowTwinsModel(BenchmarkModule):
         input_image_width = self.dataloader_kNN.dataset[0][0].shape[1]
         self.backbone = ConvArch(input_channel_number=3, input_image_width=input_image_width, output_size=512,
                          depth=depth, width=width)
-        import pdb; pdb.set_trace()
 
         # self.backbone = nn.Sequential(
         #     *list(resnet.children())[:-1],
@@ -713,12 +712,12 @@ bench_results = dict()
 experiment_version = None
 # loop through configurations and train models
 for BenchmarkModel in models:
-    for depth in [8]:
-        wandb.init(project='SelfSupervised', entity='ibenshaul', mode="disabled", sync_tensorboard=True, reinit=True)
+    for depth in [10, 1]:
+        wandb.init(project='SelfSupervised', entity='ibenshaul', mode="online", sync_tensorboard=True, reinit=True)
 
         runs = []
         model_name = BenchmarkModel.__name__.replace('Model', '')
-        conf = {'depth': depth, 'model_name': model_name}
+        conf = {'depth': depth, 'model_name': model_name, 'batch_size': batch_size, }
         wandb.config.update(conf)
         for seed in range(n_runs):
             pl.seed_everything(seed)
@@ -753,6 +752,7 @@ for BenchmarkModel in models:
                 sync_batchnorm=sync_batchnorm,
                 logger=logger,
                 callbacks=[checkpoint_callback],
+                check_val_every_n_epoch=5
                 # val_check_interval=0.05
             )
             start = time.time()
@@ -766,15 +766,13 @@ for BenchmarkModel in models:
                 'model': model_name,
                 'batch_size': batch_size,
                 'epochs': max_epochs,
-                'max_accuracy': benchmark_model.max_accuracy,
+                'max_accuracy': benchmark_model.max_knn_accuracy,
                 'runtime': end - start,
                 'gpu_memory_usage': torch.cuda.max_memory_allocated(),
                 'seed': seed,
             }
 
             runs.append(run)
-            run.update('epoch')
-            wandb.log()
             print(run)
 
             # delete model and trainer + free up cuda memory
