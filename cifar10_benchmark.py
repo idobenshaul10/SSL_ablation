@@ -44,7 +44,7 @@ sync_batchnorm = False
 gather_distributed = False 
 
 # benchmark
-n_runs = 1 # optional, increase to create multiple runs and report mean + std
+
 batch_size = 512
 lr_factor = batch_size / 128 # scales the learning rate linearly with batch size
 
@@ -380,10 +380,11 @@ class BarlowTwinsModel(BenchmarkModule):
         return loss
 
     def configure_optimizers(self):
+        wandb.config.update({'optimizer': 'SGD'})
         optim = torch.optim.SGD(
             self.parameters(), 
             lr=6e-2 * lr_factor,
-            momentum=0.9, 
+            momentum=0.9,
             weight_decay=5e-4
         )
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, max_epochs)
@@ -711,15 +712,17 @@ bench_results = dict()
 
 experiment_version = None
 # loop through configurations and train models
+seeds = [2]
 for BenchmarkModel in models:
-    for depth in [10, 1]:
+    for depth in [2, 4, 8, 10, 12, 16, 20]:
         wandb.init(project='SelfSupervised', entity='ibenshaul', mode="online", sync_tensorboard=True, reinit=True)
 
         runs = []
         model_name = BenchmarkModel.__name__.replace('Model', '')
         conf = {'depth': depth, 'model_name': model_name, 'batch_size': batch_size, }
         wandb.config.update(conf)
-        for seed in range(n_runs):
+        for seed in seeds:
+            wandb.config.update({"seed": seed})
             pl.seed_everything(seed)
             dataloader_train_ssl, dataloader_train_kNN, dataloader_test = get_data_loaders(
                 batch_size=batch_size,
@@ -729,7 +732,7 @@ for BenchmarkModel in models:
 
             # Save logs to: {CWD}/benchmark_logs/cifar10/{experiment_version}/{model_name}/
             # If multiple runs are specified a subdirectory for each run is created.
-            sub_dir = model_name if n_runs <= 1 else f'{model_name}/run{seed}'
+            # sub_dir = model_name if n_runs <= 1 else f'{model_name}/run{seed}'
             # logger = TensorBoardLogger(
             #     save_dir=os.path.join(logs_root_dir, 'cifar10'),
             #     name='',
