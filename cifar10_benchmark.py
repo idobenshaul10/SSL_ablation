@@ -23,7 +23,7 @@ from models.ConvArch import ConvArch
 logs_root_dir = os.path.join(os.getcwd(), 'benchmark_logs')
 
 # set max_epochs to 800 for long run (takes around 10h on a single V100)
-max_epochs = 200
+max_epochs = 400
 num_workers = 0
 knn_k = 200
 knn_t = 0.1
@@ -116,14 +116,23 @@ test_transforms = torchvision.transforms.Compose([
     )
 ])
 
-cifar10 = torchvision.datasets.CIFAR10("/home/ido/datasets/cifar10", download=True)
-dataset_train_ssl = LightlyDataset.from_torch_dataset(cifar10)
+cifar100 = torchvision.datasets.CIFAR100("/home/ido/datasets/cifar100", download=True)
+dataset_train_ssl = LightlyDataset.from_torch_dataset(cifar100)
 
-cifar10 = torchvision.datasets.CIFAR10("/home/ido/datasets/cifar10", download=True)
-dataset_train_kNN = LightlyDataset.from_torch_dataset(cifar10, transform=test_transforms)
+cifar100 = torchvision.datasets.CIFAR100("/home/ido/datasets/cifar100", download=True)
+dataset_train_kNN = LightlyDataset.from_torch_dataset(cifar100, transform=test_transforms)
 
-cifar10_test = torchvision.datasets.CIFAR10("/home/ido/datasets/cifar10", train=False, download=True)
-dataset_test = LightlyDataset.from_torch_dataset(cifar10_test, transform=test_transforms)
+cifar100_test = torchvision.datasets.CIFAR100("/home/ido/datasets/cifar100", train=False, download=True)
+dataset_test = LightlyDataset.from_torch_dataset(cifar100_test, transform=test_transforms)
+
+# cifar10 = torchvision.datasets.CIFAR10("/home/ido/datasets/cifar10", download=True)
+# dataset_train_ssl = LightlyDataset.from_torch_dataset(cifar10)
+#
+# cifar10 = torchvision.datasets.CIFAR10("/home/ido/datasets/cifar10", download=True)
+# dataset_train_kNN = LightlyDataset.from_torch_dataset(cifar10, transform=test_transforms)
+#
+# cifar10_test = torchvision.datasets.CIFAR10("/home/ido/datasets/cifar10", train=False, download=True)
+# dataset_test = LightlyDataset.from_torch_dataset(cifar10_test, transform=test_transforms)
 
 #
 # dataset_train_ssl = lightly.data.LightlyDataset(
@@ -338,7 +347,7 @@ class BarlowTwinsModel(BenchmarkModule):
     def __init__(self, dataloader_kNN, num_classes, depth=10, width=100):
         super().__init__(dataloader_kNN, num_classes)
         # create a ResNet backbone and remove the classification head
-        resnet = lightly.models.ResNetGenerator('resnet-18')
+        # resnet = lightly.models.ResNetGenerator('resnet-18')
         input_image_width = self.dataloader_kNN.dataset[0][0].shape[1]
         self.backbone = ConvArch(input_channel_number=3, input_image_width=input_image_width, output_size=512,
                          depth=depth, width=width)
@@ -714,8 +723,10 @@ experiment_version = None
 # loop through configurations and train models
 seeds = [2]
 for BenchmarkModel in models:
-    for depth in [2, 4, 8, 10, 12, 16, 20]:
-        wandb.init(project='SelfSupervised', entity='ibenshaul', mode="online", sync_tensorboard=True, reinit=True)
+    for depth in [2, 4, 6]:
+    # for depth in [2]:
+        wandb.init(project='SelfSupervised', entity='ibenshaul', mode="online",
+                   sync_tensorboard=True, reinit=True, tags=['superclass'])
 
         runs = []
         model_name = BenchmarkModel.__name__.replace('Model', '')
